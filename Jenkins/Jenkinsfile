@@ -1,0 +1,41 @@
+/*
+ jenkinsfile for upgrad assignment
+*/
+
+pipeline {
+    agent any
+    stages {
+        stage('Configure Git repository') {
+            steps {
+                 checkout([
+                            $class: 'GitSCM', 
+                            branches: [[name: '*/master']], 
+                            doGenerateSubmoduleConfigurations: false, 
+                            extensions: [[$class: 'CleanCheckout']], 
+                            submoduleCfg: [], 
+                            userRemoteConfigs: [[credentialsId: '1e2dc47d-e330-41f3-9a00-0f77775cabfd', url: 'https://github.com/Dimandal/upgrad_project_1.git']]
+                        ])
+            }
+        }
+
+	stage('Build docker image and push image') {
+
+            steps {
+                sh "aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/v0b8b9w5"
+                sh "docker build -t test-node-app ."
+                sh "docker tag test-node-app:latest public.ecr.aws/v0b8b9w5/test-node-app:latest"
+                sh "docker push public.ecr.aws/v0b8b9w5/test-node-app:latest"
+            }
+
+        }
+
+        stage('Deploy docker image on application server') {
+            steps {
+                sh "ssh app"
+                sh "docker stop test-node-app || docker run -d public.ecr.aws/v0b8b9w5/test-node-app:latest"
+            }
+        }
+    }
+}
+
+/* End of file */
